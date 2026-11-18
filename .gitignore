@@ -4,6 +4,7 @@ dataset/
 
 # Trained models and checkpoints (too large for GitHub)
 saved_models/
+models/
 *.keras
 *.h5
 *.hdf5
