@@ -58,6 +58,37 @@ pillow
 
 A GPU is strongly recommended.
 
+## Hosting the web app
+
+The repository includes two web interfaces:
+
+- The React dashboard in `frontend/` uses the Flask API in `backend/server.py`.
+- `app.py` is a separate Streamlit app and does not use the React dashboard.
+
+### React dashboard (Vercel + Render)
+
+Deploy the Flask API as a Render Web Service and the React frontend as a Vercel project. The root `.python-version` file pins Render to Python 3.12, which has a TensorFlow 2.21.0 Linux wheel. Render's newer default Python 3.14 does not.
+
+1. Push the project to GitHub.
+2. On Render, create a Web Service for the repository. Keep the service's root directory at the repository root so Render reads `.python-version`. Use:
+   - Build command: `pip install -r requirements.txt && pip install gunicorn`
+   - Start command: `gunicorn --bind 0.0.0.0:$PORT backend.server:app`
+3. Before deploying the frontend, update `frontend/src/App.jsx` to use an environment-configured API URL instead of the hardcoded `http://localhost:5000`. For example:
+
+   ```js
+   const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+   ```
+
+   Use `${API_BASE_URL}/api/models` for the models request and `${API_BASE_URL}${endpoint}` for predictions.
+4. On Vercel, import the repository and set the project root to `frontend`. Use `npm run build` as the build command and `dist` as the output directory. Set `VITE_API_URL` to the public URL of your Render service (for example, `https://your-service.onrender.com`).
+5. Verify the backend at `https://your-service.onrender.com/api/health`, then open the Vercel URL and try a prediction.
+
+The backend needs trained `.keras` or `.h5` model files under the repository's `models/` directory (or project root). Model files are excluded from Git by `.gitignore`, so they will not be present in a normal deployment from GitHub. Provide them to the deployed service separately, for example by downloading them from model or object storage during deployment. Choose a hosting plan with sufficient memory for TensorFlow and the models. For production, configure the API's CORS policy to allow only your frontend's domain.
+
+### Streamlit app
+
+To host only the Streamlit interface, deploy `app.py` with Streamlit Community Cloud and use the repository's `requirements.txt`. It also requires trained model files in `models/` (or the project root), so make those available to the deployment as described above.
+
 ## How it works
 
 Both models share a ResNet152 backbone (trained from scratch, no pretrained weights), global average pooling, `Dense(256)` and `Dropout(0.5)`. They differ only in the head:
