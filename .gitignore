@@ -26,6 +26,10 @@ env/
 image.jpg
 image (*).jpg
 
+# Node.js
+node_modules/
+dist/
+
 # IDE / OS
 .vscode/
 .idea/
