@@ -17,8 +17,10 @@ The ordinal model is more accurate and makes fewer large errors. This is a singl
 
 | File | Purpose |
 |---|---|
-| `Fruit_Ripeness_Ordinal_ResNet152_Banana_Classification (1).ipynb` | Full experiment: data loading, both models, training, evaluation, single-image inference |
+| `Fruit_Ripeness_Ordinal_ResNet152_TransferLearning_Evaluation_Updated (1).ipynb` | Full experiment: data loading, both models, training, evaluation, single-image inference |
 | `DOCUMENTATION.md` | Detailed docs: dataset, pipeline, model specs, results, known issues |
+| `backend/server.py` | Flask API that loads the models and serves predictions |
+| `frontend/` | React (Vite) dashboard |
 
 ## Dataset
 
@@ -58,36 +60,47 @@ pillow
 
 A GPU is strongly recommended.
 
-## Hosting the web app
+## Web app (Vercel + ngrok)
 
-The repository includes two web interfaces:
+The React dashboard in `frontend/` talks to the Flask API in `backend/server.py`. The models are about 1.7 GB, too large for free hosting tiers, so the API runs on your own PC and is exposed with a free ngrok tunnel. The frontend is hosted on Vercel.
 
-- The React dashboard in `frontend/` uses the Flask API in `backend/server.py`.
-- `app.py` is a separate Streamlit app and does not use the React dashboard.
+### 1. Put the models in place
 
-### React dashboard (Vercel + Render)
+Place the trained `.keras` / `.h5` files in `models/` (excluded from Git by `.gitignore`).
 
-Deploy the Flask API as a Render Web Service and the React frontend as a Vercel project. The root `.python-version` file pins Render to Python 3.12, which has a TensorFlow 2.21.0 Linux wheel. Render's newer default Python 3.14 does not.
+### 2. Run the backend
 
-1. Push the project to GitHub.
-2. On Render, create a Web Service for the repository. Keep the service's root directory at the repository root so Render reads `.python-version`. Use:
-   - Build command: `pip install -r requirements.txt && pip install gunicorn`
-   - Start command: `gunicorn --bind 0.0.0.0:$PORT backend.server:app`
-3. Before deploying the frontend, update `frontend/src/App.jsx` to use an environment-configured API URL instead of the hardcoded `http://localhost:5000`. For example:
+```
+pip install -r requirements.txt
+python backend/server.py
+```
 
-   ```js
-   const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-   ```
+The API listens on port 5000. Check `http://localhost:5000/api/health`.
 
-   Use `${API_BASE_URL}/api/models` for the models request and `${API_BASE_URL}${endpoint}` for predictions.
-4. On Vercel, import the repository and set the project root to `frontend`. Use `npm run build` as the build command and `dist` as the output directory. Set `VITE_API_URL` to the public URL of your Render service (for example, `https://your-service.onrender.com`).
-5. Verify the backend at `https://your-service.onrender.com/api/health`, then open the Vercel URL and try a prediction.
+### 3. Expose it with ngrok
 
-The backend needs trained `.keras` or `.h5` model files under the repository's `models/` directory (or project root). Model files are excluded from Git by `.gitignore`, so they will not be present in a normal deployment from GitHub. Provide them to the deployed service separately, for example by downloading them from model or object storage during deployment. Choose a hosting plan with sufficient memory for TensorFlow and the models. For production, configure the API's CORS policy to allow only your frontend's domain.
+Free ngrok accounts need agent version 3.30.0 or newer (`ngrok update`), and an authtoken (`ngrok config add-authtoken <token>`).
 
-### Streamlit app
+```
+ngrok http 5000
+```
 
-To host only the Streamlit interface, deploy `app.py` with Streamlit Community Cloud and use the repository's `requirements.txt`. It also requires trained model files in `models/` (or the project root), so make those available to the deployment as described above.
+Copy the `https://...ngrok-free.dev` URL. Open `<url>/api/models` in a browser once; you should see JSON listing your models. The frontend sends the `ngrok-skip-browser-warning` header, which stops free-tier ngrok from returning its HTML warning page instead of JSON.
+
+### 4. Deploy the frontend
+
+1. Push the repository to GitHub.
+2. On Vercel, import the repository and set the project root to `frontend`. Build command: `npm run build`, output directory: `dist`.
+3. Set the environment variable `VITE_API_URL` to your ngrok URL, with no trailing slash and no `/api`.
+4. Redeploy. Vite bakes the value in at build time, so changing it requires a new build.
+
+For local development, `npm run dev` inside `frontend/` uses `http://localhost:5000` when `VITE_API_URL` is not set.
+
+Notes:
+
+- Your PC, the Flask server and ngrok must all be running for the site to work.
+- If your ngrok URL changes, update `VITE_API_URL` and redeploy. A free static domain from the ngrok dashboard avoids this.
+- The API allows all origins (CORS `*`). Restrict this to your frontend's domain for anything beyond a demo.
 
 ## How it works
 
