@@ -1,7 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 
-const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/+$/, '');
-
 function App() {
   const [models, setModels] = useState([]);
   const [selectedModel, setSelectedModel] = useState('');
@@ -15,17 +13,15 @@ function App() {
   useEffect(() => {
     async function loadModels() {
       try {
-        const res = await fetch(`${API_BASE_URL}/api/models`);
-        if (!res.ok) throw new Error('Bad response');
+        const res = await fetch('http://localhost:5000/api/models');
         const data = await res.json();
         const modelList = data.models || [];
         setModels(modelList);
-        if (modelList.length === 0) setError('The server is reachable but has no model files loaded.');
         if (modelList.length > 0) {
           setSelectedModel(modelList[0].name);
         }
       } catch (err) {
-        setError(`Could not connect to the prediction server at ${API_BASE_URL}. Check VITE_API_URL and that the backend is running.`);
+        setError('Could not connect to the prediction server. Start the backend first.');
       }
     }
     loadModels();
@@ -35,7 +31,7 @@ function App() {
     return [...models].sort((a, b) => {
       const accA = a.accuracy ?? -1;
       const accB = b.accuracy ?? -1;
-      return accB - accA;
+      return (accB ?? -1) - (accA ?? -1);
     });
   }, [models]);
 
@@ -43,10 +39,7 @@ function App() {
     const file = event.target.files?.[0];
     if (!file) return;
     setImage(file);
-    setPreviewUrl((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
-      return URL.createObjectURL(file);
-    });
+    setPreviewUrl(URL.createObjectURL(file));
     setResults([]);
     setError('');
   };
@@ -71,13 +64,13 @@ function App() {
     setError('');
 
     try {
-      const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+      const res = await fetch(`http://localhost:5000${endpoint}`, {
         method: 'POST',
         body: formData,
       });
-      const data = await res.json().catch(() => ({}));
+      const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || `Prediction failed (${res.status})`);
+        throw new Error(data.error || 'Prediction failed');
       }
       const predictions = isSingleModel
         ? [{

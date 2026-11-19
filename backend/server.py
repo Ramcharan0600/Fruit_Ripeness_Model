@@ -98,8 +98,6 @@ def get_model_abs_path(model_name: str) -> str:
 
 
 def load_model(model_name: str):
-    if model_name not in {m["name"] for m in list_models()}:
-        raise FileNotFoundError(f"Model file not found: {model_name}")
     if model_name not in MODEL_CACHE:
         model_path = get_model_abs_path(model_name)
         MODEL_CACHE[model_name] = tf.keras.models.load_model(model_path, compile=False)
@@ -150,18 +148,6 @@ def health():
     return {"status": "ok", "title": APP_TITLE, "models": list_models()}
 
 
-@app.get("/")
-def index():
-    return jsonify({
-        "service": APP_TITLE,
-        "message": "Backend is running. Use the API endpoints below.",
-        "endpoints": {
-            "health": "/api/health",
-            "models": "/api/models",
-        },
-    })
-
-
 @app.get("/api/models")
 def get_models():
     return {"models": list_models()}
@@ -198,8 +184,6 @@ def predict():
             "architecture": "ordinal" if result["type"] == "ordinal" else "categorical",
             "result": result,
         }
-    except FileNotFoundError as exc:
-        return jsonify({"error": str(exc)}), 404
     except Exception as exc:  # pragma: no cover
         return jsonify({"error": str(exc)}), 500
 
@@ -214,19 +198,14 @@ def compare_models():
         return jsonify({"error": "No image selected."}), 400
 
     ground_truth = request.form.get("groundTruth", "").strip()
-    if ground_truth and ground_truth not in CLASS_NAMES:
-        return jsonify({"error": f"Invalid groundTruth. Expected one of: {', '.join(CLASS_NAMES)}."}), 400
     try:
         image_bytes = file.read()
         batch = preprocess_image(image_bytes)
         comparison = []
         for model_name in [m["name"] for m in list_models()]:
-            try:
-                model = load_model(model_name)
-                raw_output = model.predict(batch, verbose=0)[0]
-                result = predict_stage(np.asarray(raw_output, dtype=np.float32))
-            except Exception:  # skip models that fail so one bad model doesn't break the comparison
-                continue
+            model = load_model(model_name)
+            raw_output = model.predict(batch, verbose=0)[0]
+            result = predict_stage(np.asarray(raw_output, dtype=np.float32))
             benchmark = MODEL_BENCHMARKS.get(model_name, {})
             result["benchmark"] = {
                 "accuracy": benchmark.get("accuracy"),
@@ -245,15 +224,14 @@ def compare_models():
                 "benchmark": result["benchmark"],
             })
 
-        if not comparison:
-            return jsonify({"error": "No models could produce a prediction."}), 500
-
         sample_accuracy = None
         if ground_truth:
+            ground_truth_index = CLASS_NAMES.index(ground_truth)
             sample_accuracy = 1 if max(comparison, key=lambda x: x["confidence"])["predicted_class"] == ground_truth else 0
-            for item in comparison:
-                item["ground_truth"] = ground_truth
-                item["sample_correct"] = (item["predicted_class"] == ground_truth)
+            if ground_truth_index is not None:
+                for item in comparison:
+                    item["ground_truth"] = ground_truth
+                    item["sample_correct"] = (item["predicted_class"] == ground_truth)
 
         return {
             "comparison": comparison,

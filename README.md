@@ -4,15 +4,14 @@ Classifies banana ripeness into four ordered stages (**Unripe → Half-ripe → 
 
 ## Results
 
-The dashboard's configured benchmark values are:
+Test set, 294 images:
 
 | Model | Accuracy | MAE (stages) |
 |---|---|---|
 | ResNet152 Categorical | 0.6973 | 0.3333 |
 | ResNet152 Ordinal | **0.7687** | **0.2449** |
-| ResNet152 Transfer Learning | 0.9271 | N/A |
 
-The ordinal model outperforms the categorical model in this benchmark. The saved transfer-learning notebook reports a held-out test accuracy of 0.8707, which differs from the dashboard's configured value of 0.9271; do not treat these values as a directly comparable test-set ranking until that discrepancy is reconciled.
+The ordinal model is more accurate and makes fewer large errors. This is a single run with one seed, so treat the gap as suggestive.
 
 ## What's in here
 
@@ -74,8 +73,15 @@ Deploy the Flask API as a Render Web Service and the React frontend as a Vercel 
 2. On Render, create a Web Service for the repository. Keep the service's root directory at the repository root so Render reads `.python-version`. Use:
    - Build command: `pip install -r requirements.txt && pip install gunicorn`
    - Start command: `gunicorn --bind 0.0.0.0:$PORT backend.server:app`
-3. On Vercel, import the repository and set the project root to `frontend`. Use `npm run build` as the build command and `dist` as the output directory. In the Vercel project's environment variables, set `VITE_API_URL` to the public URL of your Render service (for example, `https://your-service.onrender.com`, without `/api`). Set it for the environments you use, then redeploy so the value is included in the frontend build.
-4. Verify the backend at `https://your-service.onrender.com/api/health`. Opening the service root (`https://your-service.onrender.com/`) returns backend information; the API itself is under `/api/`. Then open the Vercel URL and try a prediction.
+3. Before deploying the frontend, update `frontend/src/App.jsx` to use an environment-configured API URL instead of the hardcoded `http://localhost:5000`. For example:
+
+   ```js
+   const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+   ```
+
+   Use `${API_BASE_URL}/api/models` for the models request and `${API_BASE_URL}${endpoint}` for predictions.
+4. On Vercel, import the repository and set the project root to `frontend`. Use `npm run build` as the build command and `dist` as the output directory. Set `VITE_API_URL` to the public URL of your Render service (for example, `https://your-service.onrender.com`).
+5. Verify the backend at `https://your-service.onrender.com/api/health`, then open the Vercel URL and try a prediction.
 
 The backend needs trained `.keras` or `.h5` model files under the repository's `models/` directory (or project root). Model files are excluded from Git by `.gitignore`, so they will not be present in a normal deployment from GitHub. Provide them to the deployed service separately, for example by downloading them from model or object storage during deployment. Choose a hosting plan with sufficient memory for TensorFlow and the models. For production, configure the API's CORS policy to allow only your frontend's domain.
 
