@@ -20,11 +20,12 @@ function App() {
         const data = await res.json();
         const modelList = data.models || [];
         setModels(modelList);
+        if (modelList.length === 0) setError('The server is reachable but has no model files loaded.');
         if (modelList.length > 0) {
           setSelectedModel(modelList[0].name);
         }
       } catch (err) {
-        setError('Could not connect to the prediction server. Start the backend first.');
+        setError(`Could not connect to the prediction server at ${API_BASE_URL}. Check VITE_API_URL and that the backend is running.`);
       }
     }
     loadModels();
