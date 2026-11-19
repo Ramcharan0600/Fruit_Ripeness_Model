@@ -148,6 +148,18 @@ def health():
     return {"status": "ok", "title": APP_TITLE, "models": list_models()}
 
 
+@app.get("/")
+def index():
+    return jsonify({
+        "service": APP_TITLE,
+        "message": "Backend is running. Use the API endpoints below.",
+        "endpoints": {
+            "health": "/api/health",
+            "models": "/api/models",
+        },
+    })
+
+
 @app.get("/api/models")
 def get_models():
     return {"models": list_models()}
