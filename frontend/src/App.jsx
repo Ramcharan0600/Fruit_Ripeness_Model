@@ -16,6 +16,7 @@ function App() {
     async function loadModels() {
       try {
         const res = await fetch(`${API_BASE_URL}/api/models`);
+        if (!res.ok) throw new Error('Bad response');
         const data = await res.json();
         const modelList = data.models || [];
         setModels(modelList);
@@ -33,7 +34,7 @@ function App() {
     return [...models].sort((a, b) => {
       const accA = a.accuracy ?? -1;
       const accB = b.accuracy ?? -1;
-      return (accB ?? -1) - (accA ?? -1);
+      return accB - accA;
     });
   }, [models]);
 
@@ -41,7 +42,10 @@ function App() {
     const file = event.target.files?.[0];
     if (!file) return;
     setImage(file);
-    setPreviewUrl(URL.createObjectURL(file));
+    setPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return URL.createObjectURL(file);
+    });
     setResults([]);
     setError('');
   };
@@ -70,9 +74,9 @@ function App() {
         method: 'POST',
         body: formData,
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(data.error || 'Prediction failed');
+        throw new Error(data.error || `Prediction failed (${res.status})`);
       }
       const predictions = isSingleModel
         ? [{
