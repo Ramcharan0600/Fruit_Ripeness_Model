@@ -2,7 +2,7 @@
 
 Banana ripeness classification with **ResNet152**, comparing a standard multiclass classifier against an **ordinal regression** model.
 
-- **Source:** `Fruit_Ripeness_Ordinal_ResNet152_Banana_Classification (1).ipynb` (Google Colab notebook, TensorFlow/Keras)
+- **Source:** `Fruit_Ripeness_Ordinal_ResNet152_TransferLearning_Evaluation_Updated (1).ipynb` (Google Colab notebook, TensorFlow/Keras)
 - **Dataset:** BananaID (Mendeley Data), original ripeness images only
 - **Task:** predict one of four ordered stages: `Unripe < Half-ripe < Ripe < Overripe`
 
