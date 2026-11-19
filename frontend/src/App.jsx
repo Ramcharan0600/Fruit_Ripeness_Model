@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 
+const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/[/]+$/, '');
+// Free-tier ngrok shows an HTML interstitial unless this header is sent.
+const NGROK_HEADERS = { 'ngrok-skip-browser-warning': 'true' };
+
 function App() {
   const [models, setModels] = useState([]);
   const [selectedModel, setSelectedModel] = useState('');
@@ -13,7 +17,7 @@ function App() {
   useEffect(() => {
     async function loadModels() {
       try {
-        const res = await fetch('http://localhost:5000/api/models');
+        const res = await fetch(`${API_BASE_URL}/api/models`, { headers: NGROK_HEADERS });
         const data = await res.json();
         const modelList = data.models || [];
         setModels(modelList);
@@ -64,7 +68,8 @@ function App() {
     setError('');
 
     try {
-      const res = await fetch(`http://localhost:5000${endpoint}`, {
+      const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+        headers: NGROK_HEADERS,
         method: 'POST',
         body: formData,
       });
