@@ -102,7 +102,37 @@ Notes:
 - If your ngrok URL changes, update `VITE_API_URL` and redeploy. A free static domain from the ngrok dashboard avoids this.
 - The API allows all origins (CORS `*`). Restrict this to your frontend's domain for anything beyond a demo.
 
-## How it works
+### How the web app works
+
+```
+Browser (Vercel, React)  --HTTPS-->  ngrok tunnel  -->  Flask API on your PC  -->  .keras models
+```
+
+1. The page loads the model list from `GET /api/models`.
+2. You upload a banana photo and choose a model (or compare all of them).
+3. The image is sent to the API, resized to 224x224, preprocessed with ResNet's `preprocess_input`, and run through the model.
+4. The API returns the predicted stage, confidence, per-class (or per-threshold) probabilities and the model's benchmark accuracy and MAE.
+
+Models are loaded on first use and cached in memory, so the first prediction is slower than later ones.
+
+| Endpoint | Method | Purpose |
+|---|---|---|
+| `/api/health` | GET | Status check and list of loaded models |
+| `/api/models` | GET | Available model files |
+| `/api/predict` | POST | `file` + `model`: prediction from one model |
+| `/api/compare` | POST | `file` (+ optional `groundTruth`): prediction from every model |
+
+### Troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| "Could not connect to the prediction server" | Check that `python backend/server.py` and `ngrok` are both running, and that `VITE_API_URL` matches the current ngrok URL (redeploy after changing it). |
+| ngrok error `ERR_NGROK_121` (agent too old) | Run `ngrok update`. |
+| Models list is empty | Put `.keras` / `.h5` files in `models/`. |
+| Browser shows an ngrok warning page for `/api/models` | Expected when opened directly; click "Visit Site". The app itself skips it with a request header. |
+| Works locally but not on Vercel | `VITE_API_URL` must be an `https://` URL with no trailing slash and no `/api`. |
+
+## Model details
 
 Both models share a ResNet152 backbone (trained from scratch, no pretrained weights), global average pooling, `Dense(256)` and `Dropout(0.5)`. They differ only in the head:
 
